@@ -1,0 +1,64 @@
+from algebra import int_to_bytes, gcd, lcm, mod_inv, find_cube_root
+
+from Crypto.Util.number import getPrime
+
+import math
+
+from sympy import * ## crt, ceiling, log, sqrt
+
+e = 65537
+
+def RSA_generate_keys(key_length):
+    p = getPrime(key_length // 2)
+    q = getPrime(key_length // 2)
+    n = p*q
+    return (p,q,n)
+
+def RSA_private_exponent(public_exponent, prime1, prime2):
+    phi = (prime1 - 1)*(prime2 - 1)
+    return mod_inv(public_exponent, phi)
+
+def RSA_encrypt(binary_data, public_exponent, public_modulus):
+    int_data = int.from_bytes(binary_data, byteorder='big')
+    return pow(int_data, public_exponent, public_modulus)
+
+def RSA_decrypt(encrypted_int_data, private_exponent, public_modulus):
+    int_data = pow(encrypted_int_data, private_exponent, public_modulus)
+    return int_to_bytes(int_data)
+
+def RSA_sign(binary_data, private_exponent, public_modulus):
+    int_data = int.from_bytes(binary_data, byteorder='big')
+    return pow(int_data, private_exponent, public_modulus)
+
+def RSA_verif(signed_int_data, binary_data, public_exponent, public_modulus):
+    verif_data = pow(signed_int_data, public_exponent, public_modulus)
+    if (int_to_bytes(verif_data) == binary_data):
+        print('ok')
+    else:
+        print('ko')
+
+def is_square(n):
+    return type(sqrt(n)) == Integer
+
+def fermat_factor(n):
+    num_digits = int(log(n, 10).evalf() + 1)
+    a = ceiling( sqrt(n).evalf(num_digits) )
+
+    counter = 0
+    while not is_square(a*a - n):
+        a += 1
+        counter += 1
+
+    b = sqrt(a*a - n)
+    return(a+b, a-b, counter)
+
+def rsa_cube_attack(ciphertexts):
+    c0, c1, c2 = ciphertexts[0][0], ciphertexts[1][0], ciphertexts[2][0]
+    n0, n1, n2 = ciphertexts[0][1], ciphertexts[1][1], ciphertexts[2][1]
+    m0, m1, m2 = n1 * n2, n0 * n2, n0 * n1
+
+    t0 = (c0 * m0 * mod_inv(m0, n0))
+    t1 = (c1 * m1 * mod_inv(m1, n1))
+    t2 = (c2 * m2 * mod_inv(m2, n2))
+    c = (t0 + t1 + t2) % (n0 * n1 * n2)
+    return int_to_bytes(find_cube_root(c))
